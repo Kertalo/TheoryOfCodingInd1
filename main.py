@@ -104,7 +104,6 @@ def Embed(name_main, name_secret, method):
 def Extract(name_out_main, name_out_secret, method, size):
     main = ImageToArray(name_out_main)
     H = FindH(method)
-
     secret_bits = []
     for i in range(0, size[1]):
         a = []
@@ -113,53 +112,40 @@ def Extract(name_out_main, name_out_secret, method, size):
             current_main.append(main[i, j][0] % 2)
             current_main.append(main[i, j][1] % 2)
             current_main.append(main[i, j][2] % 2)
-
             if len(current_main) >= 2 ** method - 1:
-                #print(current_main[0:2 ** method - 1])
                 current_secret = SyndromeForGetSecret(current_main[0:2 ** method - 1], H)
-                #print("2_" + str(current_secret) + str(i) + " " + str(j))
                 current_main = current_main[2 ** method - 1:]
                 for k in range(0, method):
                     a.append(current_secret[k])
                 if len(a) == 8 * 3 * size[0]:
                     break
         secret_bits.append(a)
-    #print(secret_bits)
 
     secret = np.array(PIL.Image.new('RGB', size))
+
     for i in range(0, len(secret_bits)):
         p = 0
         color = 0
         color_type = 0
         byte = 8
-        #pixels = []
-        #colors = []
         for j in range(0, len(secret_bits[i])):
             byte -= 1
-            color += 2 ** byte * secret_bits[i][j]
-            if byte == 1:
+            color += 2 ** (byte * secret_bits[i][j])
+            if byte == 0:
                 byte = 8
                 if p >= size[0]:
                     break
                 secret[i][p][color_type] = color
                 color_type += 1
-                #colors.append(color)
                 color = 0
                 if color_type == 3:
                     p += 1
                     color_type = 0
-                    #pixels.append(colors)
-                    #colors = []
-        #secret.append(pixels)
-    #secret_rgb = np.asarray(secret)
-    #im = PIL.Image.new('RGB', size)
-    #print(secret_rgb)
-    #secret_rgb = np.asarray(im)
     Image.fromarray(secret).save(name_out_secret)
 
 
-Embed(NAME_MAIN_IMAGE, NAME_SECRET_IMAGE, 4)
-Extract(NAME_OUT_MAIN_IMAGE, NAME_OUT_SECRET_IMAGE, 4, (14, 11))
-H = FindH(3)
+Embed(NAME_MAIN_IMAGE, NAME_SECRET_IMAGE, 3)
+Extract(NAME_OUT_MAIN_IMAGE, NAME_OUT_SECRET_IMAGE, 3, (13, 11))
+# H = FindH(3)
 # print(Syndrome([0, 1, 0, 1, 0, 1, 0], [0, 0, 0], H))
 # print(SyndromeForGetSecret([1, 0, 0, 1, 1, 0, 1], H))
