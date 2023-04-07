@@ -70,7 +70,7 @@ def Embed(name_main, name_secret, method):
                     a.append(int(secret[i, j][k] / (2 ** t)) % 2)
         message.append(a)
 
-    for i in range(0, len(secret)):
+    for i in range(1, len(secret) + 1):
         current_main = []
         first_index = (0, 0)
         for j in range(0, len(main[0])):
@@ -78,8 +78,8 @@ def Embed(name_main, name_secret, method):
             current_main.append(main[i, j][1] % 2)
             current_main.append(main[i, j][2] % 2)
             if len(current_main) >= 2 ** method - 1:
-                current_secret = message[i][0:method]
-                del message[i][0:method]
+                current_secret = message[i - 1][0:method]
+                del message[i - 1][0:method]
                 edit_current_main = Syndrome(current_main[0:2 ** method - 1], current_secret, H)
                 current_main = current_main[2 ** method - 1:]
                 for k in range(first_index[0], j + 1):
@@ -94,7 +94,7 @@ def Embed(name_main, name_secret, method):
                             break
                     first_index = (first_index[0], 0)
                 first_index = (j, 3 - len(current_main))
-                if len(message[i]) == 0:
+                if len(message[i - 1]) == 0:
                     break
 
     Image.fromarray(main).save(NAME_OUT_MAIN_IMAGE)
@@ -105,7 +105,7 @@ def Extract(name_out_main, name_out_secret, method, size):
     main = ImageToArray(name_out_main)
     H = FindH(method)
     secret_bits = []
-    for i in range(0, size[1]):
+    for i in range(1, size[1] + 1):
         a = []
         current_main = []
         for j in range(0, len(main[0])):
