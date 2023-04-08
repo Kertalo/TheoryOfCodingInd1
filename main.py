@@ -54,6 +54,15 @@ def SyndromeForGetSecret(container, h_matrix):
     return message
 
 
+def Size(size, width_or_height):
+    for i in range(7, -1, -1):
+        if len(width_or_height) > i:
+            size.append(int(width_or_height[i]))
+        else:
+            size.append(0)
+    return size
+
+
 # Встраивание
 def Embed(name_main, name_secret, method):
     main = ImageToArray(name_main)
@@ -62,6 +71,13 @@ def Embed(name_main, name_secret, method):
     H = FindH(method)
 
     message = []
+    size1 = bin(len(secret) - 1)[2:][::-1]
+    size2 = bin(len(secret[0]) - 1)[2:][::-1]
+    size = []
+    Size(size, size1)
+    Size(size, size2)
+    message.append(size)
+
     for i in range(0, len(secret)):
         a = []
         for j in range(0, len(secret[0])):
@@ -70,7 +86,7 @@ def Embed(name_main, name_secret, method):
                     a.append(int(secret[i, j][k] / (2 ** t)) % 2)
         message.append(a)
 
-    for i in range(1, len(secret) + 1):
+    for i in range(0, len(message)):
         current_main = []
         first_index = (0, 0)
         for j in range(0, len(main[0])):
@@ -78,8 +94,8 @@ def Embed(name_main, name_secret, method):
             current_main.append(main[i, j][1] % 2)
             current_main.append(main[i, j][2] % 2)
             if len(current_main) >= 2 ** method - 1:
-                current_secret = message[i - 1][0:method]
-                del message[i - 1][0:method]
+                current_secret = message[i][0:method]
+                del message[i][0:method]
                 edit_current_main = Syndrome(current_main[0:2 ** method - 1], current_secret, H)
                 current_main = current_main[2 ** method - 1:]
                 for k in range(first_index[0], j + 1):
@@ -94,34 +110,49 @@ def Embed(name_main, name_secret, method):
                             break
                     first_index = (first_index[0], 0)
                 first_index = (j, 3 - len(current_main))
-                if len(message[i - 1]) == 0:
+                if len(message[i]) == 0:
                     break
 
     Image.fromarray(main).save(NAME_OUT_MAIN_IMAGE)
 
 
+def ExtractFor(main, H, method, size, i):
+    a = []
+    current_main = []
+    for j in range(0, len(main[0])):
+        current_main.append(main[i, j][0] % 2)
+        current_main.append(main[i, j][1] % 2)
+        current_main.append(main[i, j][2] % 2)
+        if len(current_main) >= 2 ** method - 1:
+            current_secret = SyndromeForGetSecret(current_main[0:2 ** method - 1], H)
+            current_main = current_main[2 ** method - 1:]
+            for k in range(0, method):
+                a.append(current_secret[k])
+            if len(a) == 8 * 3 * size:
+                break
+    return a
+
+
 # Извлечение
-def Extract(name_out_main, name_out_secret, method, size):
+def Extract(name_out_main, name_out_secret, method):
     main = ImageToArray(name_out_main)
     H = FindH(method)
-    secret_bits = []
-    for i in range(1, size[1] + 1):
-        a = []
-        current_main = []
-        for j in range(0, len(main[0])):
-            current_main.append(main[i, j][0] % 2)
-            current_main.append(main[i, j][1] % 2)
-            current_main.append(main[i, j][2] % 2)
-            if len(current_main) >= 2 ** method - 1:
-                current_secret = SyndromeForGetSecret(current_main[0:2 ** method - 1], H)
-                current_main = current_main[2 ** method - 1:]
-                for k in range(0, method):
-                    a.append(current_secret[k])
-                if len(a) == 8 * 3 * size[0]:
-                    break
-        secret_bits.append(a)
 
-    secret = np.array(PIL.Image.new('RGB', size))
+    size = ExtractFor(main, H, method, 1, 0)
+    size1 = size[8:16]
+    width = 1
+    for i in range(0, 8):
+        width += 2 ** (7 - i) * size1[i]
+    size2 = size[:8]
+    height = 1
+    for i in range(0, 8):
+        height += 2 ** (7 - i) * size2[i]
+
+    secret_bits = []
+    for i in range(1, height + 1):
+        secret_bits.append(ExtractFor(main, H, method, width, i))
+
+    secret = np.array(PIL.Image.new('RGB', (width, height)))
 
     for i in range(0, len(secret_bits)):
         p = 0
@@ -133,7 +164,7 @@ def Extract(name_out_main, name_out_secret, method, size):
             color += 2 ** (byte * secret_bits[i][j])
             if byte == 0:
                 byte = 8
-                if p >= size[0]:
+                if p >= width:
                     break
                 secret[i][p][color_type] = color
                 color_type += 1
@@ -144,8 +175,8 @@ def Extract(name_out_main, name_out_secret, method, size):
     Image.fromarray(secret).save(name_out_secret)
 
 
-Embed(NAME_MAIN_IMAGE, NAME_SECRET_IMAGE, 3)
-Extract(NAME_OUT_MAIN_IMAGE, NAME_OUT_SECRET_IMAGE, 3, (13, 11))
+Embed(NAME_MAIN_IMAGE, NAME_SECRET_IMAGE, 4)
+Extract(NAME_OUT_MAIN_IMAGE, NAME_OUT_SECRET_IMAGE, 4)
 # H = FindH(3)
 # print(Syndrome([0, 1, 0, 1, 0, 1, 0], [0, 0, 0], H))
 # print(SyndromeForGetSecret([1, 0, 0, 1, 1, 0, 1], H))
